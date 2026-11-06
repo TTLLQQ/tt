@@ -1,0 +1,44 @@
+services:
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: sqlite:////data/tt.db
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in root .env}
+      DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:?Set DATA_ENCRYPTION_KEY in root .env}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      FRONTEND_ORIGINS: http://localhost:5173,http://localhost:5174
+      BOOTSTRAP_ADMIN_USERNAME: ${BOOTSTRAP_ADMIN_USERNAME:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      WEATHER_API_KEY: ${WEATHER_API_KEY:-}
+    volumes:
+      - tt-data:/data
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 4s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+  user_frontend:
+    build: ./user_frontend
+    environment:
+      VITE_API_PROXY: http://backend:8000
+    ports:
+      - "5173:5173"
+    depends_on:
+      backend:
+        condition: service_healthy
+  admin_frontend:
+    build: ./admin_frontend
+    environment:
+      VITE_API_PROXY: http://backend:8000
+    ports:
+      - "5174:5174"
+    depends_on:
+      backend:
+        condition: service_healthy
+volumes:
+  tt-data:
